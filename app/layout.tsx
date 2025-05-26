@@ -1,5 +1,6 @@
 import "./globals.css";
 import ContextProvider from "@/providers/ContextProvider";
+import { AuthProvider } from "@/context/AuthContext";
 import { Roboto } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 
@@ -26,7 +27,9 @@ export default function RootLayout({
       </head>
       <body className={`${roboto.className} antialiased`}>
         <Toaster position="top-center" />
-        <ContextProvider>{children}</ContextProvider>
+        <AuthProvider>
+          <ContextProvider>{children}</ContextProvider>
+        </AuthProvider>
       </body>
     </html>
   );

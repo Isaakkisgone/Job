@@ -1,11 +1,14 @@
 "use client";
 import { useGlobalContext } from "@/context/globalContext";
-import React from "react";
+import { useAuth } from "@/context/AuthContext";
+import { createJob } from "@/lib/firestore";
+import React, { useState } from "react";
 import JobTitle from "./JobTitle";
 import JobDetails from "./JobDetails";
 import JobSkills from "./JobSkills ";
 import JobLocation from "./JobLocation";
-import { useJobsContext } from "@/context/jobsContext";
+import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 function JobForm() {
   const {
@@ -20,7 +23,10 @@ function JobForm() {
     tags,
     resetJobForm,
   } = useGlobalContext();
-  const { createJob } = useJobsContext();
+
+  const { user } = useAuth();
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const sections = ["Тухай", "Дэлгэрэнгүй", "Ур чадвар", "Хаяг"];
   const [currentSection, setCurrentSection] = React.useState(sections[0]);
@@ -63,24 +69,77 @@ function JobForm() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    createJob({
-      title: jobTitle,
-      description: jobDescription,
-      salaryType,
-      jobType: activeEmploymentTypes,
-      salary,
-      location: `${location.address ? location.address + ", " : ""}${
-        location.city ? location.city + ", " : ""
-      }${location.country}`,
-      skills,
-      negotiable,
-      tags,
-    });
+    if (!user) {
+      toast.error("Нэвтэрч орно уу!");
+      return;
+    }
 
-    resetJobForm();
+    // Validation
+    if (!jobTitle || activeEmploymentTypes.length === 0) {
+      toast.error("Ажлын нэр болон төрлийг бөглөнө үү!");
+      setCurrentSection("Тухай");
+      return;
+    }
+
+    if (!jobDescription || salary <= 0) {
+      toast.error("Ажлын тайлбар болон цалингийн мэдээллийг бөглөнө үү!");
+      setCurrentSection("Дэлгэрэнгүй");
+      return;
+    }
+
+    if (skills.length === 0 || tags.length === 0) {
+      toast.error("Шаардлагатай ур чадвар болон шошгыг нэмнэ үү!");
+      setCurrentSection("Ур чадвар");
+      return;
+    }
+
+    if (!location.address && !location.city && !location.country) {
+      toast.error("Ажлын байрны хаягийг бөглөнө үү!");
+      setCurrentSection("Хаяг");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const jobData = {
+        title: jobTitle,
+        company: user.displayName || "Компани",
+        location: `${location.address ? location.address + ", " : ""}${
+          location.city ? location.city + ", " : ""
+        }${location.country}`,
+        salary: `${salary}${
+          salaryType === "hourly"
+            ? "/цаг"
+            : salaryType === "monthly"
+            ? "/сар"
+            : "/жил"
+        }${negotiable ? " (хэлэлцэх боломжтой)" : ""}`,
+        description: jobDescription,
+        requirements: skills,
+        type: activeEmploymentTypes[0] as
+          | "full-time"
+          | "part-time"
+          | "contract"
+          | "temporary",
+        category: tags[0] || "Бусад",
+        postedBy: user.uid,
+        isActive: true,
+      };
+
+      const jobId = await createJob(jobData);
+      toast.success("Ажлын зар амжилттай нийтлэгдлээ!");
+      resetJobForm();
+      router.push(`/job/${jobId}`);
+    } catch (error) {
+      console.error("Error creating job:", error);
+      toast.error("Ажлын зар нийтлэхэд алдаа гарлаа!");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -100,7 +159,9 @@ function JobForm() {
           >
             <span
               className={`w-6 h-6 rounded-full flex items-center border border-gray-400/60 justify-center text-gray-500
-                ${currentSection === section ? " text-white" : ""} ${getCompletedColor(section)}`}
+                ${
+                  currentSection === section ? " text-white" : ""
+                } ${getCompletedColor(section)}`}
             >
               {index + 1}
             </span>
@@ -122,7 +183,7 @@ function JobForm() {
           {currentSection !== "Хаяг" && (
             <button
               type="button"
-              className="px-6 py-2 bg-[#7263F3] text-white rounded-md"
+              className="px-6 py-2 bg-[#7263F3] text-white rounded-md hover:bg-[#5a4fd1] transition-colors"
               onClick={() => {
                 const currentIndex = sections.indexOf(currentSection);
                 setCurrentSection(sections[currentIndex + 1]);
@@ -135,9 +196,10 @@ function JobForm() {
           {currentSection === "Хаяг" && (
             <button
               type="submit"
-              className="self-end px-6 py-2 bg-[#7263F3] text-white rounded-md"
+              disabled={isSubmitting}
+              className="self-end px-6 py-2 bg-[#7263F3] text-white rounded-md hover:bg-[#5a4fd1] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Нийтлэх
+              {isSubmitting ? "Нийтэлж байна..." : "Нийтлэх"}
             </button>
           )}
         </div>

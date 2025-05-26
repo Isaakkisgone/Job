@@ -21,9 +21,22 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
-import { title } from "process";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const router = useRouter();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      router.push(`/findwork?search=${encodeURIComponent(searchTerm.trim())}`);
+    } else {
+      router.push("/findwork");
+    }
+  };
+
   const features = [
     {
       icon: <Briefcase className="w-6 h-6 text-[#7263f3]" />,
@@ -76,27 +89,32 @@ export default function Home() {
             Иргэн бүрд ажлын байр
           </h1>
           <p className="text-xl mb-8">
-            Байгууллагын гол үнэт зүйл бол хүн бүрийн өсөлт, хөгжлийг дэмжих явдал юм
+            Байгууллагын гол үнэт зүйл бол хүн бүрийн өсөлт, хөгжлийг дэмжих
+            явдал юм
           </p>
-          <div className="max-w-2xl mx-auto flex gap-4">
+          <form
+            onSubmit={handleSearch}
+            className="max-w-2xl mx-auto flex gap-4"
+          >
             <Input
               type="text"
               placeholder="Ажил хайх"
               className="flex-grow bg-white text-black"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <Button className="bg-[#7263f3] text-white">
+            <Button type="submit" className="bg-[#7263f3] text-white">
               <SearchIcon className="w-6 h-6" />
               Хайх
             </Button>
-          </div>
+          </form>
         </div>
       </section>
 
       <section className="py-20 bg-[#f0f5fa]">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">
-            Бидний{" "}
-            <span className="text-[#7263f3] font-extrabold">Тухай</span>
+            Бидний <span className="text-[#7263f3] font-extrabold">Тухай</span>
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

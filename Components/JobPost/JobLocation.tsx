@@ -1,6 +1,6 @@
 "use client";
 import { useGlobalContext } from "@/context/globalContext";
-import React from "react";
+import React, { useEffect } from "react";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 
@@ -9,10 +9,13 @@ function JobLocation() {
 
   const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-
-    setLocation((prev: {}) => ({ ...prev, [name]: value }));
+    setLocation((prev: any) => ({ ...prev, [name]: value }));
   };
-localStorage.setItem("islogin", "1");
+
+  useEffect(() => {
+    localStorage.setItem("islogin", "1");
+  }, []);
+
   return (
     <div className="p-6 flex flex-col gap-4 bg-background border border-border rounded-lg">
       <h3 className="text-lg font-semibold">Ажлын байршил</h3>
@@ -20,16 +23,16 @@ localStorage.setItem("islogin", "1");
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="flex-1">
           <Label htmlFor="country" className="text-sm text-muted-foreground">
-            Аймаг,Хот
+            Аймаг, Хот
           </Label>
           <Input
             type="text"
-            id="Аймаг,Хот"
-            name="Аймаг,Хот"
+            id="country"
+            name="country"
             value={location.country}
             onChange={handleLocationChange}
             className="flex-1 w-full mt-2"
-            placeholder="Enter Country"
+            placeholder="Аймаг, Хот"
           />
         </div>
         <div className="flex-1">
@@ -38,12 +41,12 @@ localStorage.setItem("islogin", "1");
           </Label>
           <Input
             type="text"
-            id="Сум, Дүүрэг"
-            name="Сум, Дүүрэг"
+            id="city"
+            name="city"
             value={location.city}
             onChange={handleLocationChange}
             className="flex-1 w-full mt-2"
-            placeholder="Enter City"
+            placeholder="Сум, Дүүрэг"
           />
         </div>
       </div>
@@ -54,12 +57,12 @@ localStorage.setItem("islogin", "1");
         </Label>
         <Input
           type="text"
-          id="Хаяг, байршил"
-          name="Хаяг, байршил"
+          id="address"
+          name="address"
           value={location.address}
           onChange={handleLocationChange}
           className="flex-1 w-full mt-2"
-          placeholder="Enter Address"
+          placeholder="Хаяг, байршил"
         />
       </div>
     </div>

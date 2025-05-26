@@ -4,15 +4,48 @@ import Footer from "@/Components/Footer";
 import Header from "@/Components/Header";
 import JobCard from "@/Components/JobItem/JobCard";
 import SearchForm from "@/Components/SearchForm";
-import { useJobsContext } from "@/context/jobsContext";
-import { Job } from "@/types/types";
+import { getAllJobs, searchJobs, Job } from "@/lib/firestore";
 import { grip, list, table } from "@/utils/Icons";
 import Image from "next/image";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
-function page() {
-  const { jobs, filters } = useJobsContext();
-  const [columns, setColumns] = React.useState(3);
+function FindWorkPage() {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [columns, setColumns] = useState(3);
+  const [filters, setFilters] = useState({
+    fullTime: false,
+    partTime: false,
+    contract: false,
+    temporary: false,
+  });
+
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get("search");
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        setLoading(true);
+        let fetchedJobs: Job[];
+
+        if (searchQuery) {
+          fetchedJobs = await searchJobs(searchQuery);
+        } else {
+          fetchedJobs = await getAllJobs();
+        }
+
+        setJobs(fetchedJobs);
+      } catch (error) {
+        console.error("Error fetching jobs:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobs();
+  }, [searchQuery]);
 
   // cycle through 1, 2, 3 columns
   const toggleGridColumns = () => {
@@ -25,23 +58,23 @@ function page() {
     return list;
   };
 
-  const filetredJobs =
-    filters.fullTime || filters.partTime || filters.contract || filters.internet
-      ? jobs.filter((job: Job) => {
-          if (filters.fullTime && job.jobType.includes("Бүтэн цагийн"))
-            return true;
-          if (filters.partTime && job.jobType.includes("Цагийн ажил"))
-            return true;
-          if (filters.contract && job.jobType.includes("Гэрээт ажилтан")) return true;
-          if (filters.internship && job.jobType.includes("Дадлага"))
-            return true;
+  const filteredJobs = jobs.filter((job: Job) => {
+    if (
+      !filters.fullTime &&
+      !filters.partTime &&
+      !filters.contract &&
+      !filters.temporary
+    ) {
+      return true; // Show all if no filters selected
+    }
 
-          if (filters.graphicDesigner && job.tags.includes("TraphicDesigner")) return true;
-          if (filters.tradeconsultant && job.tags.includes("Tradeconsultant")) return true;
-          if (filters.chef && job.tags.includes("Chef")) return true;
-          if (filters.Waiter && job.tags.includes("Waiter")) return true;
-        })
-      : jobs;
+    if (filters.fullTime && job.type === "full-time") return true;
+    if (filters.partTime && job.type === "part-time") return true;
+    if (filters.contract && job.type === "contract") return true;
+    if (filters.temporary && job.type === "temporary") return true;
+
+    return false;
+  });
 
   return (
     <main>
@@ -75,11 +108,16 @@ function page() {
 
       <div className="w-[90%] mx-auto mb-14">
         <div className="flex justify-between items-center">
-          <h2 className="text-3xl font-bold text-black py-8">Сүүлд нэмэгдсэн ажлын байр</h2>
+          <h2 className="text-3xl font-bold text-black py-8">
+            {searchQuery
+              ? `"${searchQuery}" хайлтын илэрц`
+              : "Сүүлд нэмэгдсэн ажлын байр"}
+            {!loading && ` (${filteredJobs.length})`}
+          </h2>
 
           <button
             onClick={toggleGridColumns}
-            className="flex items-center gap-4 border border-gray-400 px-8 py-2 rounded-full font-medium"
+            className="flex items-center gap-4 border border-gray-400 px-8 py-2 rounded-full font-medium hover:bg-gray-50 transition-colors"
           >
             <span>
               {columns === 3
@@ -93,7 +131,75 @@ function page() {
         </div>
 
         <div className="flex gap-8">
-          <Filters />
+          <div className="w-64 self-start">
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <h3 className="font-semibold text-lg mb-4">Шүүлтүүр</h3>
+
+              <div className="space-y-3">
+                <h4 className="font-medium text-gray-700">Ажлын төрөл</h4>
+
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={filters.fullTime}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        fullTime: e.target.checked,
+                      }))
+                    }
+                    className="rounded"
+                  />
+                  <span>Бүтэн цагийн</span>
+                </label>
+
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={filters.partTime}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        partTime: e.target.checked,
+                      }))
+                    }
+                    className="rounded"
+                  />
+                  <span>Цагийн ажил</span>
+                </label>
+
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={filters.contract}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        contract: e.target.checked,
+                      }))
+                    }
+                    className="rounded"
+                  />
+                  <span>Гэрээт ажилтан</span>
+                </label>
+
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={filters.temporary}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        temporary: e.target.checked,
+                      }))
+                    }
+                    className="rounded"
+                  />
+                  <span>Түр зуурын</span>
+                </label>
+              </div>
+            </div>
+          </div>
 
           <div
             className={`self-start flex-1 grid gap-8 ${
@@ -104,13 +210,27 @@ function page() {
                 : "grid-cols-1"
             }`}
           >
-            {jobs.length > 0 ? (
-              filetredJobs.map((job: Job) => (
-                <JobCard key={job._id} job={job} />
-              ))
+            {loading ? (
+              <div className="col-span-full flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7263f3] mx-auto"></div>
+                  <p className="mt-4 text-gray-600">Ачааллаж байна...</p>
+                </div>
+              </div>
+            ) : filteredJobs.length > 0 ? (
+              filteredJobs.map((job: Job) => <JobCard key={job.id} job={job} />)
             ) : (
-              <div className="mt-1 flex items-center">
-                <p className="text-2xl font-bold">Илэрц олдсонгүй!</p>
+              <div className="col-span-full mt-1 flex items-center justify-center py-12">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-gray-600">
+                    Илэрц олдсонгүй!
+                  </p>
+                  <p className="text-gray-500 mt-2">
+                    {searchQuery
+                      ? "Өөр түлхүүр үгээр хайж үзнэ үү"
+                      : "Одоогоор ажлын зар байхгүй байна"}
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -122,4 +242,4 @@ function page() {
   );
 }
 
-export default page;
+export default FindWorkPage;
