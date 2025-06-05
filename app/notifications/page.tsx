@@ -22,24 +22,10 @@ import {
   markNotificationAsRead,
   deleteNotification,
   createNotification,
+  Notification,
 } from "@/lib/firestore";
 import toast from "react-hot-toast";
 import moment from "moment";
-
-interface Notification {
-  id: string;
-  userId: string;
-  type: "application_status" | "new_job" | "job_match" | "system";
-  title: string;
-  message: string;
-  isRead: boolean;
-  createdAt: any;
-  data?: {
-    jobId?: string;
-    applicationId?: string;
-    employerId?: string;
-  };
-}
 
 export default function NotificationsPage() {
   const { user, userProfile, loading } = useAuth();
@@ -104,6 +90,8 @@ export default function NotificationsPage() {
         return <User className="h-5 w-5 text-purple-500" />;
       case "system":
         return <Bell className="h-5 w-5 text-gray-500" />;
+      case "new_application":
+        return <User className="h-5 w-5 text-orange-500" />;
       default:
         return <Bell className="h-5 w-5 text-gray-500" />;
     }
@@ -119,6 +107,8 @@ export default function NotificationsPage() {
         return "Тохирох ажил";
       case "system":
         return "Системийн мэдэгдэл";
+      case "new_application":
+        return "Шинэ ажил хүлээн авах хүсэл";
       default:
         return "Мэдэгдэл";
     }
@@ -265,24 +255,26 @@ export default function NotificationsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 ml-4">
-                      {!notification.isRead && (
+                      {!notification.isRead && notification.id && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleMarkAsRead(notification.id)}
+                          onClick={() => handleMarkAsRead(notification.id!)}
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
                           Уншсан
                         </Button>
                       )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(notification.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {notification.id && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(notification.id!)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -299,10 +291,12 @@ export default function NotificationsPage() {
               onClick={async () => {
                 try {
                   const unreadNotifications = notifications.filter(
-                    (n) => !n.isRead
+                    (n) => !n.isRead && n.id
                   );
                   await Promise.all(
-                    unreadNotifications.map((n) => markNotificationAsRead(n.id))
+                    unreadNotifications.map((n) =>
+                      markNotificationAsRead(n.id!)
+                    )
                   );
                   setNotifications((prev) =>
                     prev.map((notif) => ({ ...notif, isRead: true }))

@@ -78,7 +78,12 @@ export interface UserProfile {
 export interface Notification {
   id?: string;
   userId: string;
-  type: "application_status" | "new_job" | "job_match" | "system";
+  type:
+    | "application_status"
+    | "new_job"
+    | "job_match"
+    | "system"
+    | "new_application";
   title: string;
   message: string;
   isRead: boolean;
@@ -146,6 +151,26 @@ export const getJobById = async (jobId: string) => {
     }
   } catch (error) {
     console.error("Error getting job:", error);
+    throw error;
+  }
+};
+
+// Get jobs by employer
+export const getJobsByEmployer = async (employerId: string) => {
+  try {
+    const q = query(
+      jobsCollection,
+      where("postedBy", "==", employerId),
+      orderBy("postedAt", "desc")
+    );
+    const querySnapshot = await getDocs(q);
+    const jobs: Job[] = [];
+    querySnapshot.forEach((doc) => {
+      jobs.push({ id: doc.id, ...doc.data() } as Job);
+    });
+    return jobs;
+  } catch (error) {
+    console.error("Error getting jobs by employer:", error);
     throw error;
   }
 };
@@ -312,11 +337,59 @@ export const createJobApplication = async (
       )
     );
 
+    console.log("Creating job application with data:", cleanedData);
+
     const docRef = await addDoc(applicationsCollection, {
       ...cleanedData,
       appliedAt: now,
       updatedAt: now,
     });
+
+    console.log("Job application created with ID:", docRef.id);
+
+    // Get job details and applicant info for notification
+    try {
+      console.log("Fetching job and applicant data for notification...");
+      console.log("Job ID:", applicationData.jobId);
+      console.log("Applicant ID:", applicationData.applicantId);
+      console.log("Employer ID:", applicationData.employerId);
+
+      const jobDoc = await getDoc(doc(db, "jobs", applicationData.jobId));
+      const applicantDoc = await getDoc(
+        doc(db, "users", applicationData.applicantId)
+      );
+
+      console.log("Job doc exists:", jobDoc.exists());
+      console.log("Applicant doc exists:", applicantDoc.exists());
+
+      if (jobDoc.exists() && applicantDoc.exists()) {
+        const jobData = jobDoc.data() as Job;
+        const applicantData = applicantDoc.data() as UserProfile;
+
+        console.log("Job title:", jobData.title);
+        console.log("Applicant name:", applicantData.name);
+
+        // Send notification to employer
+        await sendNewApplicationNotification(
+          applicationData.employerId,
+          jobData.title,
+          applicantData.name,
+          applicationData.jobId,
+          docRef.id
+        );
+
+        console.log(
+          "Notification sent successfully to employer:",
+          applicationData.employerId
+        );
+      } else {
+        console.log("Job or applicant document not found");
+      }
+    } catch (notificationError) {
+      console.error("Error sending notification:", notificationError);
+      // Don't throw error for notification failure, as application was created successfully
+    }
+
     return docRef.id;
   } catch (error) {
     console.error("Error creating job application:", error);
@@ -688,5 +761,43 @@ export const sendApplicationStatusNotification = async (
     });
   } catch (error) {
     console.error("Error sending application status notification:", error);
+  }
+};
+
+// Helper function to send notification to employer when new application is received
+export const sendNewApplicationNotification = async (
+  employerId: string,
+  jobTitle: string,
+  applicantName: string,
+  jobId: string,
+  applicationId: string
+) => {
+  try {
+    console.log("Sending new application notification...");
+    console.log("Employer ID:", employerId);
+    console.log("Job title:", jobTitle);
+    console.log("Applicant name:", applicantName);
+
+    const title = "Шинэ өргөдөл ирлээ!";
+    const message = `${applicantName} таны "${jobTitle}" ажлын байранд өргөдөл илгээлээ.`;
+
+    console.log("Notification title:", title);
+    console.log("Notification message:", message);
+
+    const notificationId = await createNotification({
+      userId: employerId,
+      type: "new_application",
+      title,
+      message,
+      isRead: false,
+      data: {
+        jobId,
+        applicationId,
+      },
+    });
+
+    console.log("Notification created with ID:", notificationId);
+  } catch (error) {
+    console.error("Error sending new application notification:", error);
   }
 };
